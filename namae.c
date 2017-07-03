@@ -729,7 +729,7 @@ namae_main(int argc, char* argv[])
 {
     int code = 0;
 
-    sock_t fd;
+    sock_t s;
     struct memory* mem;
     int64_t lasttime; /* used in timeouts */
 
@@ -781,17 +781,17 @@ namae_main(int argc, char* argv[])
 
     /* ----------------------------------------------------- */
 
-    fd = udp_sock();
-    if (fd == OS_INVALID_SOCKET) {
+    s = udp_sock();
+    if (s == OS_INVALID_SOCKET) {
         die("socket creation failed")
     }
 
-    if (sock_block(fd, 0) < 0) {
+    if (sock_block(s, 0) < 0) {
         die_cleanup("failed to make socket non-blocking")
     }
 
     /* connect to google dns */
-    if (os_connect(fd, "8.8.8.8", 53) < 0)
+    if (os_connect(s, "8.8.8.8", 53) < 0)
     {
         if (os_err() != EINPROGRESS) {
             die_cleanup("connection failed immediately")
@@ -803,7 +803,7 @@ namae_main(int argc, char* argv[])
         /* poll the socket every POLL_DELAY milliseconds
            until it's writable (connected) */
 
-        while (!sock_writable(fd, POLL_DELAY))
+        while (!sock_writable(s, POLL_DELAY))
         {
             /* time out after TIMEOUT seconds */
             if (os_ntime_mono() - lasttime > TIMEOUT * 1e+9) {
@@ -859,7 +859,7 @@ namae_main(int argc, char* argv[])
         }
 
         written =
-            sock_write(fd, mem->buf + n, p - mem->buf - n);
+            sock_write(s, mem->buf + n, p - mem->buf - n);
 
         if (written < 0) {
             die_cleanup("write failed")
@@ -889,7 +889,7 @@ namae_main(int argc, char* argv[])
             die_cleanup("timed out")
         }
 
-        nread = sock_read(fd, mem->buf + n, BUFSIZE - n);
+        nread = sock_read(s, mem->buf + n, BUFSIZE - n);
 
         if (nread < 0)
         {
@@ -958,7 +958,7 @@ namae_main(int argc, char* argv[])
     /* ----------------------------------------------------- */
 
 cleanup:
-    sock_close(fd);
+    sock_close(s);
 
     if (code) {
         return code;
