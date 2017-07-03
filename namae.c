@@ -859,7 +859,7 @@ namae_main(int argc, char* argv[])
         }
 
         written =
-            os_write(fd, mem->buf + n, p - mem->buf - n);
+            sock_write(fd, mem->buf + n, p - mem->buf - n);
 
         if (written < 0) {
             die_cleanup("write failed")
@@ -889,7 +889,7 @@ namae_main(int argc, char* argv[])
             die_cleanup("timed out")
         }
 
-        nread = os_read(fd, mem->buf + n, BUFSIZE - n);
+        nread = sock_read(fd, mem->buf + n, BUFSIZE - n);
 
         if (nread < 0)
         {

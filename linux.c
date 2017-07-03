@@ -18,8 +18,6 @@
 /* ------------------------------------------------------------- */
 
 #define os_getpid getpid
-#define os_write(s, buf, n) write(s->fd, buf, n)
-#define os_read(s, buf, n) read(s->fd, buf, n)
 #define os_sleep(ms) usleep(ms * 1000)
 #define os_malloc malloc
 #define os_free free
@@ -58,6 +56,9 @@ struct sock
 #define OS_INVALID_SOCKET (sock_t)-1
 
 typedef struct sock* sock_t;
+
+#define sock_write(s, buf, n) write(s->fd, buf, n)
+#define  sock_read(s, buf, n)  read(s->fd, buf, n)
 
 sock_t
 udp_sock()
