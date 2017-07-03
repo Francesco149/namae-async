@@ -48,7 +48,7 @@
     public domain, check out the attached UNLICENSE.
 */
 
-#define NAMAE_VER "namae-async v1.0"
+#define NAMAE_VER "namae-async v1.1"
 
 /* big endian integer packing/unpacking utils */
 
@@ -782,7 +782,7 @@ namae_main(int argc, char* argv[])
     /* ----------------------------------------------------- */
 
     fd = udp_sock();
-    if (fd < 0) {
+    if (fd == OS_INVALID_SOCKET) {
         die("socket creation failed")
     }
 
@@ -958,7 +958,7 @@ namae_main(int argc, char* argv[])
     /* ----------------------------------------------------- */
 
 cleanup:
-    close(fd);
+    sock_close(fd);
 
     if (code) {
         return code;

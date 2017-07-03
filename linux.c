@@ -18,8 +18,8 @@
 /* ------------------------------------------------------------- */
 
 #define os_getpid getpid
-#define os_write write
-#define os_read read
+#define os_write(s, buf, n) write(s->fd, buf, n)
+#define os_read(s, buf, n) read(s->fd, buf, n)
 #define os_sleep(ms) usleep(ms * 1000)
 #define os_malloc malloc
 #define os_free free
@@ -49,26 +49,84 @@ os_ntime_mono()
 
 /* ------------------------------------------------------------- */
 
-#define OS_INVALID_SOCKET -1
-typedef int sock_t;
+struct sock
+{
+    int fd;
+    int epfd;
+};
+
+#define OS_INVALID_SOCKET (sock_t)-1
+
+typedef struct sock* sock_t;
 
 sock_t
 udp_sock()
 {
+    struct sock* s;
     int fd;
+    int epfd;
+    struct epoll_event ev;
 
     fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (fd < 0) {
         return OS_INVALID_SOCKET;
     }
 
-    return fd;
+    epfd = epoll_create(1);
+    if (epfd < 0) {
+        s = OS_INVALID_SOCKET;
+        goto cleanup;
+    }
+
+    memset(&ev, 0, sizeof(struct epoll_event));
+    ev.events = EPOLLOUT;
+
+    if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) < 0)
+    {
+        s = OS_INVALID_SOCKET;
+        goto cleanup;
+    }
+
+    s = os_malloc(sizeof(struct sock));
+    if (!s) {
+        s = OS_INVALID_SOCKET;
+        goto cleanup;
+    }
+
+    s->fd = fd;
+    s->epfd = epfd;
+
+cleanup:
+    if (s == OS_INVALID_SOCKET)
+    {
+        if (epfd != -1) {
+            close(epfd);
+        }
+
+        if (fd != -1) {
+            close(fd);
+        }
+    }
+
+    return s;
+}
+
+void
+sock_close(sock_t s)
+{
+    if (!s) {
+        return;
+    }
+
+    close(s->fd);
+    close(s->epfd);
+    os_free(s);
 }
 
 int
 sock_block(sock_t s, bool32_t block)
 {
-    int flags = fcntl(s, F_GETFL, 0);
+    int flags = fcntl(s->fd, F_GETFL, 0);
 
     if (flags == -1) {
         return -1;
@@ -80,27 +138,18 @@ sock_block(sock_t s, bool32_t block)
         flags |= O_NONBLOCK;
     }
 
-    return fcntl(s, F_SETFL, flags);
+    return fcntl(s->fd, F_SETFL, flags);
 }
 
 bool32_t
 sock_writable(sock_t s, uint32_t timeout_ms)
 {
-    /* NOTE: this is probably inefficient but simpler to
-             use than keeping track of the fd list */
-
     bool32_t res;
     struct epoll_event ev;
-    int epfd;
+    res = epoll_wait(s->epfd, &ev, 1, timeout_ms) > 0;
 
-    epfd = epoll_create(1);
-
-    memset(&ev, 0, sizeof(struct epoll_event));
-    ev.events = EPOLLOUT;
-    epoll_ctl(epfd, EPOLL_CTL_ADD, s, &ev);
-
-    res = epoll_wait(epfd, &ev, 1, timeout_ms) > 0;
-    close(epfd);
+    /* NOTE: actually check what events are set when I add
+             more pollable things */
 
     return res;
 }
@@ -116,7 +165,7 @@ os_connect(sock_t s, char const* ipstr, uint16_t port)
     a.sin_port = htons(port);
     a.sin_addr.s_addr = inet_addr(ipstr);
 
-    return connect(s, (struct sockaddr*)&a, sizeof(a));
+    return connect(s->fd, (struct sockaddr*)&a, sizeof(a));
 }
 
 /* ------------------------------------------------------------- */
