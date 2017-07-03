@@ -64,8 +64,8 @@ sock_t
 udp_sock()
 {
     struct sock* s;
-    int fd;
-    int epfd;
+    int fd = -1;
+    int epfd = -1;
     struct epoll_event ev;
 
     fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
